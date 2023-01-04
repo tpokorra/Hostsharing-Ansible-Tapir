@@ -1,0 +1,194 @@
+---
+- hosts: tapir
+  become_user: "{{pac}}-{{user}}"
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    # see https://docs.ansible.com/ansible/latest/user_guide/become.html#risks-of-becoming-an-unprivileged-user
+    ansible_common_remote_group: "{{pac}}"
+    ansible_remote_tmp: ~/.ansible/tmp
+
+  tasks:
+  # see separate playbook-init.yml; we need postgresql extension unaccent and hstore
+  #- name: Create user, domain and database
+  #  import_tasks: tasks/hs_basis.yml
+
+  #################################
+  ## create directories
+  #################################
+  - name: create directory etc
+    become: yes
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/etc"
+      state: directory
+  - name: create directory var/tmp
+    become: yes
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/var/tmp"
+      state: directory
+  - name: create directory var/log
+    become: yes
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/var/log"
+      state: directory
+  - name: create directory var/run
+    become: yes
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/var/run"
+      state: directory
+
+  #################################
+  ## install requirements
+  #################################
+
+  - name: install poetry
+    become: yes
+    shell: |
+      curl -sSL https://install.python-poetry.org | python3 - || exit -1
+      echo 'export PATH="/home/pacs/{{pac}}/users/{{user}}/.local/bin:$PATH"' >> /home/pacs/{{pac}}/users/{{user}}/.profile
+      chmod a+x /home/pacs/{{pac}}/users/{{user}}/.profile
+      touch /home/pacs/{{pac}}/users/{{user}}/.ansible_poetry_installed
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}"
+      creates: "/home/pacs/{{pac}}/users/{{user}}/.ansible_poetry_installed"
+
+  # on Debian Buster, we only have Python 3.7; but poetry demands 3.10
+  - name: install Python 3.10
+    become: yes
+    shell: |
+      mkdir -p /home/pacs/{{pac}}/users/{{user}}/opt || exit -1
+      mkdir -p /home/pacs/{{pac}}/users/{{user}}/build || exit -1
+      cd /home/pacs/{{pac}}/users/{{user}}/build
+      wget https://www.python.org/ftp/python/{{python_version}}/Python-{{python_version}}.tgz
+      tar xzf Python-{{python_version}}.tgz
+      cd Python-{{python_version}}
+      ./configure --enable-optimizations --prefix=/home/pacs/{{pac}}/users/{{user}}/opt || exit -1
+      make || exit -1
+      make install || exit -1
+      rm -rf /home/pacs/{{pac}}/users/{{user}}/build
+      echo 'export PATH="/home/pacs/{{pac}}/users/{{user}}/opt/bin:$PATH"' >> /home/pacs/{{pac}}/users/{{user}}/.profile
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}"
+      creates: "/home/pacs/{{pac}}/users/{{user}}/opt/bin/python3.10"
+
+  ##################################
+  ## install tapir
+  ##################################
+
+  - name: create directory tapir
+    become: yes
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/tapir"
+      state: directory
+
+  - name: install tapir
+    become: yes
+    unarchive:
+      src: https://github.com/SuperCoopBerlin/tapir/archive/refs/heads/master.tar.gz
+      remote_src: yes
+      dest: /home/pacs/{{pac}}/users/{{user}}/tapir
+      extra_opts: [--strip-components=1]
+      creates: /home/pacs/{{pac}}/users/{{user}}/tapir/manage.py
+
+  - name: create venv
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    shell: |
+      source /home/pacs/{{pac}}/users/{{user}}/.profile
+      python3 -m venv .venv || exit -1
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/tapir"
+      creates: "/home/pacs/{{pac}}/users/{{user}}/tapir/.venv"
+
+  - name: install poetry packages
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    shell: |
+      source .venv/bin/activate
+      source /home/pacs/{{pac}}/users/{{user}}/.profile
+      poetry install || exit -1
+      touch /home/pacs/{{pac}}/users/{{user}}/.ansible_packages_installed
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/tapir"
+      creates: "/home/pacs/{{pac}}/users/{{user}}/.ansible_packages_installed"
+
+  ##################################
+  ## configuration
+  ##################################
+
+  - name: upload configuration file
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template:
+      src: "templates/settings.py"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/tapir/tapir/settings.py"
+
+  - name: upload the password for the postgresql database
+    become: yes
+    template:
+      src: "templates/pgpass"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/.pgpass"
+      mode: "700"
+
+  ######################
+  ## initialise instance
+  ######################
+
+  - name: initialise instance
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    shell: |
+      source .venv/bin/activate
+      source /home/pacs/{{pac}}/users/{{user}}/.profile
+      poetry run python manage.py compilemessages --ignore ".venv" || exit -1
+      poetry run python manage.py collectstatic --noinput --clear || exit -1
+      poetry run python manage.py migrate || exit -1
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/tapir"
+
+  ########################
+  ## setup the apache site
+  ########################
+
+  # TODO
+  - name: drop htdocs-ssl
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    file:
+       path: "/home/pacs/{{pac}}/users/{{user}}/doms/{{domain}}/htdocs-ssl"
+       state: absent
+  - name: create symbolic link for htdocs-ssl
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    file:
+      src: "/home/pacs/{{pac}}/users/{{user}}/tapir/public"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/doms/{{domain}}/htdocs-ssl"
+      state: link
+
+
+  ####################################
+  ## install cron jobs
+  ####################################
+  - name: start monit as cronjob
+    become: yes
+    cron:
+      name: "start monit at reboot"
+      special_time: reboot
+      job: rm -f $HOME/var/run/* && /usr/bin/monit -c "$HOME/.monitrc"
+
+  ##############################################
+  ## start services via monit
+  ##############################################
+  - name: start monit
+    become: yes
+    shell: |
+      /usr/bin/monit -c ".monitrc"
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/"
+      creates: "/home/pacs/{{pac}}/users/{{user}}/var/run/monit.id"
+
