@@ -8,6 +8,10 @@ tapir:
       user: tapir
       password: testpassw0rd_changeme
 
+      admin_name: my_admin
+      admin_email: admin@example.org
+      admin_password: top_secret
+
       # generate with eg. https://djecrety.ir/
       django_secret_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 

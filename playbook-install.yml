@@ -150,45 +150,36 @@
       executable: /bin/bash
       chdir: "/home/pacs/{{pac}}/users/{{user}}/tapir"
 
+  - name: create super user
+    become: yes
+    shell: |
+      source .venv/bin/activate
+      source /home/pacs/{{pac}}/users/{{user}}/.profile
+      echo "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(is_superuser=True).exists() or User.objects.create_superuser('{{admin_name}}', '{{admin_email}}', '{{admin_password}}')" | python manage.py shell || exit -1
+      touch /home/pacs/{{pac}}/users/{{user}}/.ansible_init_admin
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/tapir"
+      creates: "/home/pacs/{{pac}}/users/{{user}}/.ansible_init_admin"
+
   ########################
   ## setup the apache site
   ########################
 
-  # TODO
-  - name: drop htdocs-ssl
+  - name: drop htaccess from htdocs-ssl
     become: yes
-    become_user: "{{pac}}-{{user}}"
     file:
-       path: "/home/pacs/{{pac}}/users/{{user}}/doms/{{domain}}/htdocs-ssl"
+       path: "/home/pacs/{{pac}}/users/{{user}}/doms/{{domain}}/htdocs-ssl/.htaccess"
        state: absent
-  - name: create symbolic link for htdocs-ssl
+  - name: create symbolic link for static files
     become: yes
-    become_user: "{{pac}}-{{user}}"
     file:
-      src: "/home/pacs/{{pac}}/users/{{user}}/tapir/public"
-      dest: "/home/pacs/{{pac}}/users/{{user}}/doms/{{domain}}/htdocs-ssl"
+      src: "/home/pacs/{{pac}}/users/{{user}}/tapir/static"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/doms/{{domain}}/htdocs-ssl/static"
       state: link
-
-
-  ####################################
-  ## install cron jobs
-  ####################################
-  - name: start monit as cronjob
+  - name: upload passenger_wsgi.py file to app directory
     become: yes
-    cron:
-      name: "start monit at reboot"
-      special_time: reboot
-      job: rm -f $HOME/var/run/* && /usr/bin/monit -c "$HOME/.monitrc"
-
-  ##############################################
-  ## start services via monit
-  ##############################################
-  - name: start monit
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/doms/{{domain}}/app-ssl/passenger_wsgi.py" src="templates/passenger_wsgi.py" mode=0644
+  - name: upload .htaccess file to domain directory
     become: yes
-    shell: |
-      /usr/bin/monit -c ".monitrc"
-    args:
-      executable: /bin/bash
-      chdir: "/home/pacs/{{pac}}/users/{{user}}/"
-      creates: "/home/pacs/{{pac}}/users/{{user}}/var/run/monit.id"
-
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/doms/{{domain}}/.htaccess" src="templates/domain_htaccess" mode=0644
