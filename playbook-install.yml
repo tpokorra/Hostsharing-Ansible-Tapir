@@ -194,6 +194,14 @@
       chdir: "/home/pacs/{{pac}}/users/{{user}}/tapir"
       creates: "/home/pacs/{{pac}}/users/{{user}}/.ansible_load_sample_data"
 
+  # Debug mode was needed for loading the sample data
+  - name: disable Debug mode
+    become: yes
+    replace:
+      path: "/home/pacs/{{pac}}/users/{{user}}/tapir/tapir/settings.py"
+      regexp: '^DEBUG = True$'
+      replace: 'DEBUG = False'
+
   # TODO: missing the password in ldap?
   #- name: create super user
   #  become: yes
