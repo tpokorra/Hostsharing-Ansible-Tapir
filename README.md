@@ -31,6 +31,8 @@ The option -i can be used to read this inventory file instead of the /etc/ansibl
 
     $ ansible-playbook -i inventory.yml playbook-init.yml
 
+Make sure that the Debian package slapd is installed on your managed server.
+
 Then ask the Hostsharing Service to install the PostgreSQL extensions hstore and unaccent. Once those have been installed, you can continue:
 
     $ ansible-playbook -i inventory.yml playbook-install.yml

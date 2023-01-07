@@ -32,6 +32,8 @@ SECRET_KEY = env(
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env("DEBUG", cast=bool, default=False)
+# to load the demo data DEBUG must be True
+DEBUG = True
 
 ALLOWED_HOSTS = env("ALLOWED_HOSTS", cast=list, default=["{{domain}}"])
 
@@ -128,7 +130,7 @@ WSGI_APPLICATION = "tapir.wsgi.application"
 DATABASES = {
     "default": env.db(default="postgresql://{{pac}}_{{user}}:{{password}}@localhost:5432/{{pac}}_{{user}}"),
     "ldap": env.db_url(
-        "LDAP_URL", default="ldap://cn=admin,dc=supercoop,dc=de:admin@openldap"
+        "LDAP_URL", default="ldap://cn={{ldap_admin_username}},{{ldap_base_dn}}:{{ldap_admin_password}}@localhost:{{ldap_port}}"
     ),
 }
 

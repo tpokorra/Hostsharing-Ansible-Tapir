@@ -1,0 +1,89 @@
+---
+#################################
+## setup the openldap instance
+#################################
+- name: create directory bin
+  become: yes
+  file:
+    path: "/home/pacs/{{pac}}/users/{{user}}/bin"
+    state: directory
+
+- name: create directory var/run
+  become: yes
+  file:
+    path: "/home/pacs/{{pac}}/users/{{user}}/var/run"
+    state: directory
+
+- name: create directory var/log
+  become: yes
+  file:
+    path: "/home/pacs/{{pac}}/users/{{user}}/var/log"
+    state: directory
+
+- name: upload install script
+  become: yes
+  template:
+    src: "templates/slapd-install.sh"
+    dest: "/home/pacs/{{pac}}/users/{{user}}/bin"
+    mode: "700"
+
+- name: run the install script
+  become: yes
+  shell: |
+    ./slapd-install.sh || exit -1
+    touch /home/pacs/{{pac}}/users/{{user}}/.ansible_slapd_init
+  args:
+    executable: /bin/bash
+    chdir: "/home/pacs/{{pac}}/users/{{user}}/bin"
+    creates: "/home/pacs/{{pac}}/users/{{user}}/.ansible_slapd_init"
+
+- name: drop the install script
+  become: yes
+  file:
+    path: "/home/pacs/{{pac}}/users/{{user}}/bin/slapd-install.sh"
+    state: absent
+
+- name: upload start script
+  become: yes
+  template:
+    src: "templates/slapd-start.sh"
+    dest: "/home/pacs/{{pac}}/users/{{user}}/bin"
+    mode: "700"
+- name: upload stop script
+  become: yes
+  template:
+    src: "templates/slapd-stop.sh"
+    dest: "/home/pacs/{{pac}}/users/{{user}}/bin"
+    mode: "700"
+
+- name: insert slapd in monitrc
+  become: yes
+  blockinfile:
+    dest: /home/pacs/{{pac}}/users/{{user}}/.monitrc
+    marker: "# {mark} ANSIBLE MANAGED BLOCK slapd"
+    block: |
+      check process slapd with pidfile /home/pacs/{{pac}}/users/{{user}}/var/run/slapd.pid
+        start program "/home/pacs/{{pac}}/users/{{user}}/bin/slapd-start.sh"
+        stop program "/home/pacs/{{pac}}/users/{{user}}/bin/slapd-stop.sh"
+
+- name: insert slapd in logrotate
+  become: yes
+  blockinfile:
+    dest: /home/pacs/{{pac}}/users/{{user}}/.logrotate
+    marker: "# {mark} ANSIBLE MANAGED BLOCK slapd"
+    block: |
+      /home/pacs/{{pac}}/users/{{user}}/var/log/slapd.log {
+          copytruncate
+          daily
+          rotate 7
+          compress
+          missingok
+      }
+
+- name: start the slapd service
+  become: yes
+  shell: |
+    ./slapd-start.sh || exit -1
+  args:
+    executable: /bin/bash
+    chdir: "/home/pacs/{{pac}}/users/{{user}}/bin"
