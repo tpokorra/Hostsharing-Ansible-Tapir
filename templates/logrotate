@@ -5,3 +5,19 @@
     compress
     missingok
 }
+
+/home/pacs/{{pac}}/users/{{user}}/var/log/celery-worker.log {
+    copytruncate
+    daily
+    rotate 7
+    compress
+    missingok
+}
+
+/home/pacs/{{pac}}/users/{{user}}/var/log/celery-beat.log {
+    copytruncate
+    daily
+    rotate 7
+    compress
+    missingok
+}

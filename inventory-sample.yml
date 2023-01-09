@@ -13,6 +13,9 @@ tapir:
       ldap_admin_password: testpassw0rd_changeme
       ldap_port: 12345
 
+      redispassword: redis_pwd_changeme
+      redisport: 6379
+
       # cronjobs run at this minute
       random_minute: "33"
 

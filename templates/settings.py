@@ -136,8 +136,8 @@ DATABASES = {
 
 DATABASE_ROUTERS = ["ldapdb.router.Router"]
 
-CELERY_BROKER_URL = "redis://redis:6379"
-CELERY_RESULT_BACKEND = "redis://redis:6379"
+CELERY_BROKER_URL = "redis://:{{redispassword}}@localhost:{{redisport}}"
+CELERY_RESULT_BACKEND = "redis://:{{redispassword}}@localhost:{{redisport}}"
 CELERY_BEAT_SCHEDULE = {
     "send_shift_reminders": {
         "task": "tapir.shifts.tasks.send_shift_reminders",

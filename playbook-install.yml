@@ -36,16 +36,41 @@
       path: "/home/pacs/{{pac}}/users/{{user}}/var/run"
       state: directory
 
-  #############################################
-  ## add configuration for monit and logrotate
-  #############################################
+  #######################################################
+  ## add configuration for monit and logrotate and redis
+  #######################################################
   - name: upload monit configuration
     become: yes
-    template: dest="/home/pacs/{{pac}}/users/{{user}}/.monitrc" src="templates/monitrc" mode=0600 force=no
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/.monitrc" src="templates/monitrc" mode=0600
 
   - name: upload logrotate configuration
     become: yes
-    template: dest="/home/pacs/{{pac}}/users/{{user}}/.logrotate" src="templates/logrotate" mode=0600 force=no
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/.logrotate" src="templates/logrotate" mode=0600
+
+  - name: upload redis configuration
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/etc/redis.conf" src="templates/redis.conf" mode=0600
+
+  - name: upload celery worker start script
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/bin" src="templates/celery-worker-start.sh" mode=0700
+
+  - name: upload celery worker stop script
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/bin" src="templates/celery-worker-stop.sh" mode=0700
+
+  - name: upload celery beat start script
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/bin" src="templates/celery-beat-start.sh" mode=0700
+
+  - name: upload celery beat stop script
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/bin" src="templates/celery-beat-stop.sh" mode=0700
 
   #################################
   ## install requirements
