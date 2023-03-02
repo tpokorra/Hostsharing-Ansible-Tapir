@@ -26,7 +26,7 @@
     become: yes
     shell: |
         export ext="unaccent"
-        psql --user {{pac}}_{{dbuser}} -c "SELECT * FROM pg_extension where extname = '$ext'" | grep "$ext" || exit -1
+        psql --user {{pac}}_{{user}} -c "SELECT * FROM pg_extension where extname = '$ext'" | grep "$ext" || exit -1
     args:
       executable: /bin/bash
       chdir: "/home/pacs/{{pac}}/users/{{user}}/"
@@ -35,7 +35,7 @@
     become: yes
     shell: |
         export ext="hstore"
-        psql --user {{pac}}_{{dbuser}} -c "SELECT * FROM pg_extension where extname = '$ext'" | grep "$ext" || exit -1
+        psql --user {{pac}}_{{user}} -c "SELECT * FROM pg_extension where extname = '$ext'" | grep "$ext" || exit -1
     args:
       executable: /bin/bash
       chdir: "/home/pacs/{{pac}}/users/{{user}}/"
