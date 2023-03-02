@@ -13,6 +13,34 @@
   #  import_tasks: tasks/hs_basis.yml
 
   #################################
+  # check for postgresql extensions
+  #################################
+  - name: upload the password for the postgresql database
+    become: yes
+    template:
+      src: "templates/pgpass"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/.pgpass"
+      mode: "700"
+
+  - name: check for unaccent
+    become: yes
+    shell: |
+        export ext="unaccent"
+        psql --user {{pac}}_{{dbuser}} -c "SELECT * FROM pg_extension where extname = '$ext'" | grep "$ext" || exit -1
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/"
+
+  - name: check for hstore
+    become: yes
+    shell: |
+        export ext="hstore"
+        psql --user {{pac}}_{{dbuser}} -c "SELECT * FROM pg_extension where extname = '$ext'" | grep "$ext" || exit -1
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}/"
+
+  #################################
   ## create directories
   #################################
   - name: create directory etc
